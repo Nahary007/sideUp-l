@@ -7,6 +7,7 @@ import PricingPage from './pages/PricingPage';
 import BlogPage from './pages/BlogPage';
 import FaqPage from './pages/FaqPage';
 import ContactPage from './pages/ContactPage';
+import ReservationPage from './pages/ReservationPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
         <Route path="blog" element={<BlogPage />} />
         <Route path="faq" element={<FaqPage />} />
         <Route path="contact" element={<ContactPage />} />
+        <Route path="reservation" element={<ReservationPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

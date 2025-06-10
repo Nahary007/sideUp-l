@@ -23,7 +23,7 @@ const Hero = () => {
               personnalisé, préparation mentale, sophrologie, et massage bien-être.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/contact" className="btn-primary">
+              <Link to="/reservation" className="btn-primary">
                 Réserver une séance
               </Link>
               <Link to="/services" className="btn-outline">

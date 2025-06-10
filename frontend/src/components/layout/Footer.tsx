@@ -181,7 +181,7 @@ const Footer = () => {
               </li>
             </ul>
             <div className="mt-6">
-              <Link to="/contact" className="btn-primary text-sm">
+              <Link to="/reservation" className="btn-primary text-sm">
                 Prendre rendez-vous
               </Link>
             </div>

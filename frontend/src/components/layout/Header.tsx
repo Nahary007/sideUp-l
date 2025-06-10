@@ -69,7 +69,7 @@ const Header = () => {
         </nav>
 
         <div className="hidden md:block">
-          <Link to="/contact" className="btn-primary">
+          <Link to="/reservation" className="btn-primary">
             Réserver
           </Link>
         </div>
@@ -139,7 +139,7 @@ const Header = () => {
               Contact
             </NavLink>
             <Link
-              to="/contact"
+              to="/reservation"
               className="btn-primary mt-4 text-center"
               onClick={closeMenu}
             >

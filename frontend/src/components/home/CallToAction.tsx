@@ -23,7 +23,7 @@ const CallToAction = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              to="/contact"
+              to="/reservation"
               className="btn bg-white text-primary-700 hover:bg-primary-50"
             >
               Prenez rendez-vous avec un expert
