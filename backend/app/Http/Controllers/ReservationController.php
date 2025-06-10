@@ -23,6 +23,18 @@ class ReservationController extends Controller
             'acceptTerms' => 'required|boolean|in:1,true',
         ]);
 
+        // Vérifier si l'heure et la date sont déjà prises
+        $existingReservation = Reservation::where('date', $validated['date'])
+                                        ->where('time', $validated['time'])
+                                        ->first();
+
+        if ($existingReservation) {
+            return response()->json([
+                'message' => 'Cette heure est déjà prise.',
+                'error' => 'time_slot_taken'
+            ], 409); // 409 Conflict
+        }
+
         // Mapping des noms de champs JS → Laravel
         $reservation = Reservation::create([
             'first_name' => $validated['firstName'],
@@ -41,4 +53,3 @@ class ReservationController extends Controller
         return response()->json(['message' => 'Réservation enregistrée avec succès.'], 201);
     }
 }
-
