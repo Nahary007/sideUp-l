@@ -96,6 +96,12 @@ const ReservationForm = ({ onSubmit, className = '' }: ReservationFormProps) => 
   const handleFormSubmit = async (data: ReservationFormData) => {
     setIsSubmitting(true);
 
+  const selected = services.find(s => s.value === data.service);
+  const dataWithDuration = {
+    ...data,
+    duration: selected ? selected.duration : '',
+  };
+
     try {
       await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
 
@@ -107,7 +113,7 @@ const ReservationForm = ({ onSubmit, className = '' }: ReservationFormProps) => 
       };
       const xsrfToken = getCookie('XSRF-TOKEN');
 
-      const response = await axios.post('http://localhost:8000/reserver', data, {
+      const response = await axios.post('http://localhost:8000/reserver', dataWithDuration, {
         headers: {
           'Content-Type': 'application/json',
           'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
