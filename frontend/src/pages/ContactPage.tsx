@@ -1,7 +1,6 @@
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence  } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
 import {
   MapPin,
   Phone,
@@ -12,6 +11,31 @@ import {
   Clock,
 } from 'lucide-react';
 import SectionHeader from '../components/ui/SectionHeader';
+import { X, CheckCircle, AlertCircle } from 'lucide-react';
+import axios from 'axios';
+
+const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -50, scale: 0.9 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: -50, scale: 0.9 }}
+    className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4 ${
+      type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    } text-white px-6 py-4 rounded-lg shadow-lg flex items-center justify-between`}
+  >
+    <div className="flex items-center">
+      {type === 'success' ? (
+        <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+      ) : (
+        <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+      )}
+      <span className="text-sm font-medium">{message}</span>
+    </div>
+    <button onClick={onClose} className="ml-4 text-white hover:text-gray-200 transition-colors">
+      <X className="w-4 h-4" />
+    </button>
+  </motion.div>
+);
 
 type FormData = {
   name: string;
@@ -29,17 +53,58 @@ const ContactPage = () => {
     reset,
   } = useForm<FormData>();
 
-  // Update page title
+
   useEffect(() => {
     document.title = 'Contact | Side-Up';
   }, []);
 
-  const onSubmit = (data: FormData) => {
-    console.log(data);
-    // Here you would typically send the form data to your server or a service like Formspree
-    alert('Merci pour votre message ! Nous vous contacterons très prochainement.');
-    reset();
-  };
+  // const onSubmit = (data: FormData) => {
+  //   console.log(data);
+  //   alert('Merci pour votre message ! Nous vous contacterons très prochainement.');
+  //   reset();
+  // };
+  // ...dans ton composant ContactPage...
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+const showToast = (message: string, type: 'success' | 'error') => {
+  setToast({ message, type });
+  setTimeout(() => setToast(null), 5000);
+};
+
+const handleContactSubmit = async (data: any) => {
+  setIsSubmitting(true);
+  try {
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+    };
+    const xsrfToken = getCookie('XSRF-TOKEN');
+
+    await axios.post('http://localhost:8000/contact', data, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+      },
+      withCredentials: true,
+    });
+
+    showToast('Message envoyé ! Nous vous répondrons rapidement.', 'success');
+    reset(); // si tu utilises react-hook-form
+
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      showToast(error.response.data.message, 'error');
+    } else {
+      showToast("Erreur lors de l'envoi du message. Veuillez réessayer.", 'error');
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <>
@@ -175,7 +240,7 @@ const ContactPage = () => {
               <h2 className="mb-8">Envoyez-nous un message</h2>
 
               <form
-                onSubmit={handleSubmit(onSubmit)}
+                onSubmit={handleSubmit(handleContactSubmit)}
                 className="bg-white p-6 rounded-xl shadow-md"
               >
                 <div className="mb-4">
@@ -303,17 +368,23 @@ const ContactPage = () => {
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full btn-primary"
-                >
-                  Envoyer
+                <button type="submit" disabled={isSubmitting} className="w-full btn-primary">
+                  {isSubmitting ? 'Envoi...' : 'Envoyer'}
                 </button>
               </form>
             </motion.div>
           </div>
         </div>
       </section>
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Booking Section */}
       <section className="py-16 bg-secondary-50">
