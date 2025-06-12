@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Reservation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ReservationConfirmation;
 
 class ReservationController extends Controller
 {
@@ -23,10 +25,10 @@ class ReservationController extends Controller
             'acceptTerms' => 'required|boolean|in:1,true',
         ]);
 
-        // Vérifier si l'heure et la date sont déjà prises
+
         $existingReservation = Reservation::where('date', $validated['date'])
-                                        ->where('time', $validated['time'])
-                                        ->first();
+        ->where('time', $validated['time'])
+       ->first();
 
         if ($existingReservation) {
             return response()->json([
@@ -35,7 +37,7 @@ class ReservationController extends Controller
             ], 409); // 409 Conflict
         }
 
-        // Mapping des noms de champs JS → Laravel
+        // Enregistrer la réservation en base
         $reservation = Reservation::create([
             'first_name' => $validated['firstName'],
             'last_name' => $validated['lastName'],
@@ -50,6 +52,9 @@ class ReservationController extends Controller
             'accept_terms' => true,
         ]);
 
-        return response()->json(['message' => 'Réservation enregistrée avec succès.'], 201);
+        // Envoyer l'e-mail de confirmation
+        Mail::to($validated['email'])->send(new ReservationConfirmation($validated));
+
+        return response()->json(['message' => 'Réservation enregistrée avec succès et email envoyé.'], 201);
     }
 }
