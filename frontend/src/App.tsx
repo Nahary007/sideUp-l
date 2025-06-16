@@ -9,11 +9,15 @@ import FaqPage from './pages/FaqPage';
 import ContactPage from './pages/ContactPage';
 import ReservationPage from './pages/ReservationPage';
 import NotFoundPage from './pages/NotFoundPage';
-import AdminPage from './pages/AdminPage';
+import LoginPage from './pages/LoginPage';
 
 function App() {
   return (
     <Routes>
+      {/* Route LoginPage SANS Layout */}
+      <Route path="/admin" element={<LoginPage />} />
+
+      {/* Les autres routes AVEC Layout */}
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />
@@ -23,7 +27,6 @@ function App() {
         <Route path="faq" element={<FaqPage />} />
         <Route path="contact" element={<ContactPage />} />
         <Route path="reservation" element={<ReservationPage />} />
-        <Route path="admin" element={<AdminPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
