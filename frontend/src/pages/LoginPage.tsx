@@ -14,24 +14,36 @@ const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const locationState = location.state as LocationState;
-  const redirectPath = locationState?.redirect || '/';
+  const redirectPath = locationState?.redirect || '/adminPage';
 
   useEffect(() => {
-    if (authState.isAuthenticated) {
+    let isMounted = true;
+    if (authState.isAuthenticated && isMounted) {
       navigate(redirectPath);
     }
+    return () => {
+      isMounted = false;
+    };
   }, [authState.isAuthenticated, navigate, redirectPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowError(false);
+    setErrorMessage(null);
+
     try {
       await login(email, password);
-    } catch (error) {
-      setShowError(true);
+      // ✅ Redirection gérée dans useEffect via authState
+    } catch (error: any) {
+      if (error?.response?.data?.message) {
+        setErrorMessage(error.response.data.message);
+      } else if (error?.message) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erreur lors de la connexion. Veuillez réessayer.");
+      }
     }
   };
 
@@ -40,10 +52,10 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Connexion</h2>
 
-        {showError && (
+        {errorMessage && (
           <div className="mb-4 flex items-center bg-red-100 text-red-700 px-4 py-3 rounded-md">
             <AlertCircle className="w-5 h-5 mr-2" />
-            <p className="text-sm">Email ou mot de passe incorrect.</p>
+            <p className="text-sm">{errorMessage}</p>
           </div>
         )}
 
