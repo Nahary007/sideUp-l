@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
 interface AuthState {
@@ -17,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,10 +25,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
-    loading: false,
+    loading: true, // Commencer en loading pour vérifier l'auth
   });
 
-  axios.defaults.withCredentials = true; // important pour les cookies
+  axios.defaults.withCredentials = true;
 
   const getXsrfToken = () => {
     const value = `; ${document.cookie}`;
@@ -35,6 +36,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (parts.length === 2) return decodeURIComponent(parts.pop()!.split(';')[0]);
     return '';
   };
+
+  // Vérifier l'état d'authentification au chargement
+  const checkAuth = async () => {
+    try {
+      setAuthState(prev => ({ ...prev, loading: true }));
+      
+      // Essayer d'accéder à une route protégée pour vérifier l'auth
+      const response = await axios.get('http://localhost:8000/admin/check-auth', {
+        withCredentials: true,
+      });
+      
+      if (response.status === 200) {
+        setAuthState({ isAuthenticated: true, loading: false });
+      } else {
+        setAuthState({ isAuthenticated: false, loading: false });
+      }
+    } catch (error) {
+      setAuthState({ isAuthenticated: false, loading: false });
+    }
+  };
+
+  // Vérifier l'auth au montage du composant
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
   const login = async (email: string, password: string) => {
     setAuthState((prev) => ({ ...prev, loading: true }));
@@ -113,12 +139,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await axios.post('http://localhost:8000/logout');
-    setAuthState({ isAuthenticated: false, loading: false });
+    try {
+      await axios.post('http://localhost:8000/logout');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      setAuthState({ isAuthenticated: false, loading: false });
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ authState, login, register, logout }}>
+    <AuthContext.Provider value={{ authState, login, register, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

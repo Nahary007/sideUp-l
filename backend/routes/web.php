@@ -12,3 +12,8 @@ Route::post('/reserver', [ReservationController::class, 'store']);
 Route::get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
+
+// Route pour vérifier l'authentification
+Route::middleware('auth')->get('/admin/check-auth', function () {
+    return response()->json(['authenticated' => true]);
+});

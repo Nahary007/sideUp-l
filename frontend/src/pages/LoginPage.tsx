@@ -20,14 +20,10 @@ const LoginPage: React.FC = () => {
   const redirectPath = locationState?.redirect || '/adminPage';
 
   useEffect(() => {
-    let isMounted = true;
-    if (authState.isAuthenticated && isMounted) {
+    if (authState.isAuthenticated && !authState.loading) {
       navigate(redirectPath);
     }
-    return () => {
-      isMounted = false;
-    };
-  }, [authState.isAuthenticated, navigate, redirectPath]);
+  }, [authState.isAuthenticated, authState.loading, navigate, redirectPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +31,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      // ✅ Redirection gérée dans useEffect via authState
+      // La redirection sera gérée par useEffect
     } catch (error: any) {
       if (error?.response?.data?.message) {
         setErrorMessage(error.response.data.message);
@@ -46,6 +42,18 @@ const LoginPage: React.FC = () => {
       }
     }
   };
+
+  // Afficher un loader pendant la vérification initiale de l'auth
+  if (authState.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300 p-4">
