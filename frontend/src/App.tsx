@@ -10,14 +10,26 @@ import ContactPage from './pages/ContactPage';
 import ReservationPage from './pages/ReservationPage';
 import NotFoundPage from './pages/NotFoundPage';
 import LoginPage from './pages/LoginPage';
+import AdminPage from './pages/AdminPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <Routes>
-      {/* Route LoginPage SANS Layout */}
+      {/* Page de login sans layout */}
       <Route path="/admin" element={<LoginPage />} />
 
-      {/* Les autres routes AVEC Layout */}
+      {/* Page Admin PROTÉGÉE */}
+      <Route
+        path="/adminPage"
+        element={
+          <ProtectedRoute>
+            <AdminPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Les autres pages avec layout */}
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />
