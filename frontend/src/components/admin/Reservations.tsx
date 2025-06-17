@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react'; // Importez useEffect
-import axios from 'axios'; // Importez axios
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Search, Filter, Eye, Check, X, Calendar, Phone, Mail, Clock, Package } from 'lucide-react';
-// import { mockReservations } from '../../data/mockData'; // N'a plus besoin des données mock
 import type { Reservation } from '../../types/admin';
 
 const Reservations: React.FC = () => {
@@ -13,26 +12,122 @@ const Reservations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Nouvelle fonction pour récupérer les réservations depuis l'API
+  // Fonction pour récupérer les réservations depuis l'API Laravel
   const fetchReservations = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get<Reservation[]>('/reservations');
-      console.log(response);
-      setReservations(response.data);
-    } catch (err) {
+      const response = await axios.get('http://localhost:8000/reservations', {
+        withCredentials: true,
+      });
+      
+      // Transformer les données Laravel vers le format attendu par le frontend
+      const transformedReservations = response.data.map((reservation: any) => ({
+        id: reservation.id.toString(),
+        clientName: `${reservation.first_name} ${reservation.last_name}`,
+        clientEmail: reservation.email,
+        clientPhone: reservation.phone,
+        service: mapServiceType(reservation.service),
+        date: reservation.date,
+        time: reservation.time,
+        duration: getDurationFromService(reservation.service),
+        status: mapStatus(reservation.status_reservations || 'pending'),
+        notes: reservation.message || '',
+        price: getPriceFromService(reservation.service),
+        createdAt: reservation.created_at || new Date().toISOString()
+      }));
+      
+      setReservations(transformedReservations);
+    } catch (err: any) {
       console.error("Erreur lors de la récupération des réservations:", err);
-      setError("Impossible de charger les réservations. Veuillez réessayer.");
+      if (err.response?.status === 401) {
+        setError("Vous devez être connecté pour voir les réservations.");
+      } else {
+        setError("Impossible de charger les réservations. Veuillez réessayer.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Utilisez useEffect pour appeler fetchReservations au montage du composant
+  // Mapper les types de service Laravel vers les types frontend
+  const mapServiceType = (service: string): 'coaching' | 'sophrologie' | 'massage' | 'formule' => {
+    switch (service) {
+      case 'coaching':
+      case 'coaching-sophrologie':
+        return 'coaching';
+      case 'sophrologie':
+        return 'sophrologie';
+      case 'massage':
+        return 'massage';
+      case 'preparation-mentale':
+        return 'coaching';
+      case 'decouverte':
+        return 'coaching';
+      default:
+        return 'coaching';
+    }
+  };
+
+  // Mapper le statut Laravel vers le statut frontend
+  const mapStatus = (status: string): 'pending' | 'confirmed' | 'completed' | 'cancelled' => {
+    if (status && status.includes('attente')) return 'pending';
+    switch (status) {
+      case 'confirmed':
+      case 'confirmee':
+        return 'confirmed';
+      case 'completed':
+      case 'terminee':
+        return 'completed';
+      case 'cancelled':
+      case 'annulee':
+        return 'cancelled';
+      default:
+        return 'pending';
+    }
+  };
+
+  // Obtenir la durée basée sur le service
+  const getDurationFromService = (service: string): number => {
+    switch (service) {
+      case 'coaching':
+      case 'sophrologie':
+      case 'preparation-mentale':
+        return 60;
+      case 'massage':
+        return 75;
+      case 'coaching-sophrologie':
+        return 90;
+      case 'decouverte':
+        return 30;
+      default:
+        return 60;
+    }
+  };
+
+  // Obtenir le prix basé sur le service
+  const getPriceFromService = (service: string): number => {
+    switch (service) {
+      case 'coaching':
+        return 80;
+      case 'sophrologie':
+        return 70;
+      case 'massage':
+        return 95;
+      case 'preparation-mentale':
+        return 75;
+      case 'coaching-sophrologie':
+        return 120;
+      case 'decouverte':
+        return 50;
+      default:
+        return 80;
+    }
+  };
+
   useEffect(() => {
     fetchReservations();
-  }, []); // Le tableau vide [] assure que cela ne s'exécute qu'une seule fois au montage
+  }, []);
 
   const filteredReservations = reservations.filter(reservation => {
     const matchesSearch = reservation.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -44,19 +139,20 @@ const Reservations: React.FC = () => {
 
   const updateReservationStatus = async (id: string, newStatus: Reservation['status']) => {
     try {
-      // Optionnel: Si vous avez une route pour mettre à jour le statut
-      // await axios.put(`/api/reservations/${id}/status`, { status: newStatus });
+      // Mettre à jour localement d'abord pour une meilleure UX
       setReservations(prev =>
         prev.map(reservation =>
           reservation.id === id ? { ...reservation, status: newStatus } : reservation
         )
       );
-      // Re-fetch les réservations pour s'assurer que l'état est synchronisé avec le backend
-      // Ou mettez à jour la réservation spécifique dans l'état local si l'API renvoie la ressource mise à jour
-      fetchReservations();
+      
+      // TODO: Implémenter l'API pour mettre à jour le statut côté serveur
+      // await axios.put(`http://localhost:8000/reservations/${id}/status`, { status: newStatus });
+      
     } catch (err) {
       console.error("Erreur lors de la mise à jour du statut:", err);
-      // Gérer l'erreur, par exemple en affichant un message à l'utilisateur
+      // Recharger les données en cas d'erreur
+      fetchReservations();
     }
   };
 
@@ -123,7 +219,10 @@ const Reservations: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <p className="text-gray-600">Chargement des réservations...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des réservations...</p>
+        </div>
       </div>
     );
   }
@@ -131,7 +230,15 @@ const Reservations: React.FC = () => {
   if (error) {
     return (
       <div className="flex justify-center items-center h-64">
-        <p className="text-red-600">{error}</p>
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchReservations}
+            className="btn-primary"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     );
   }
@@ -228,9 +335,9 @@ const Reservations: React.FC = () => {
                           {getServiceLabel(reservation.service)}
                         </span>
                         {reservation.service === 'formule' && (
-                        <span title="Formule combinée">
+                          <span title="Formule combinée">
                             <Package className="w-4 h-4 text-teal-600" />
-                        </span>
+                          </span>
                         )}
                       </div>
                       <div className="text-sm text-gray-500">{reservation.duration} min</div>
@@ -284,8 +391,11 @@ const Reservations: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    Aucune réservation trouvée.
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    {searchTerm || statusFilter !== 'all' || serviceFilter !== 'all' 
+                      ? 'Aucune réservation trouvée avec ces critères.'
+                      : 'Aucune réservation pour le moment.'
+                    }
                   </td>
                 </tr>
               )}
