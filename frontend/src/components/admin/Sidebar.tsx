@@ -9,30 +9,37 @@ import {
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+const Sidebar: React.FC = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
     navigate('/admin');
   };
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
   const menuItems = [
-    { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-    { id: 'reservations', label: 'Réservations', icon: Calendar },
-    { id: 'pricing', label: 'Tarifs', icon: Euro },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'settings', label: 'Paramètres', icon: Settings }
+    { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, path: '/adminPage' },
+    { id: 'reservations', label: 'Réservations', icon: Calendar, path: '/adminPage/reservations' },
+    { id: 'pricing', label: 'Tarifs', icon: Euro, path: '/adminPage/pricing' },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/adminPage/messages' },
+    { id: 'clients', label: 'Clients', icon: Users, path: '/adminPage/clients' },
+    { id: 'settings', label: 'Paramètres', icon: Settings, path: '/adminPage/settings' }
   ];
+
+  const isActive = (path: string) => {
+    if (path === '/adminPage') {
+      return location.pathname === '/adminPage' || location.pathname === '/adminPage/dashboard';
+    }
+    return location.pathname === path;
+  };
 
   return (
     <div className="w-64 bg-white shadow-lg h-screen flex flex-col">
@@ -55,9 +62,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => handleNavigation(item.path)}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                    activeTab === item.id
+                    isActive(item.path)
                       ? 'bg-teal-50 text-teal-700 border-r-2 border-teal-500'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
