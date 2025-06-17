@@ -1,29 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Importez useEffect
+import axios from 'axios'; // Importez axios
 import { Search, Filter, Eye, Check, X, Calendar, Phone, Mail, Clock, Package } from 'lucide-react';
-import { mockReservations } from '../../data/mockData';
+// import { mockReservations } from '../../data/mockData'; // N'a plus besoin des données mock
 import type { Reservation } from '../../types/admin';
 
 const Reservations: React.FC = () => {
-  const [reservations, setReservations] = useState<Reservation[]>(mockReservations);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Nouvelle fonction pour récupérer les réservations depuis l'API
+  const fetchReservations = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get<Reservation[]>('/reservations');
+      console.log(response);
+      setReservations(response.data);
+    } catch (err) {
+      console.error("Erreur lors de la récupération des réservations:", err);
+      setError("Impossible de charger les réservations. Veuillez réessayer.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Utilisez useEffect pour appeler fetchReservations au montage du composant
+  useEffect(() => {
+    fetchReservations();
+  }, []); // Le tableau vide [] assure que cela ne s'exécute qu'une seule fois au montage
 
   const filteredReservations = reservations.filter(reservation => {
     const matchesSearch = reservation.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reservation.clientEmail.toLowerCase().includes(searchTerm.toLowerCase());
+                          reservation.clientEmail.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || reservation.status === statusFilter;
     const matchesService = serviceFilter === 'all' || reservation.service === serviceFilter;
     return matchesSearch && matchesStatus && matchesService;
   });
 
-  const updateReservationStatus = (id: string, newStatus: Reservation['status']) => {
-    setReservations(prev => 
-      prev.map(reservation => 
-        reservation.id === id ? { ...reservation, status: newStatus } : reservation
-      )
-    );
+  const updateReservationStatus = async (id: string, newStatus: Reservation['status']) => {
+    try {
+      // Optionnel: Si vous avez une route pour mettre à jour le statut
+      // await axios.put(`/api/reservations/${id}/status`, { status: newStatus });
+      setReservations(prev =>
+        prev.map(reservation =>
+          reservation.id === id ? { ...reservation, status: newStatus } : reservation
+        )
+      );
+      // Re-fetch les réservations pour s'assurer que l'état est synchronisé avec le backend
+      // Ou mettez à jour la réservation spécifique dans l'état local si l'API renvoie la ressource mise à jour
+      fetchReservations();
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du statut:", err);
+      // Gérer l'erreur, par exemple en affichant un message à l'utilisateur
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -85,6 +119,22 @@ const Reservations: React.FC = () => {
         return 'bg-gray-50 text-gray-700';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-gray-600">Chargement des réservations...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -163,74 +213,82 @@ const Reservations: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredReservations.map((reservation) => (
-                <tr key={reservation.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{reservation.clientName}</div>
-                      <div className="text-sm text-gray-500">{reservation.clientEmail}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getServiceColor(reservation.service)}`}>
-                        {getServiceLabel(reservation.service)}
+              {filteredReservations.length > 0 ? (
+                filteredReservations.map((reservation) => (
+                  <tr key={reservation.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{reservation.clientName}</div>
+                        <div className="text-sm text-gray-500">{reservation.clientEmail}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getServiceColor(reservation.service)}`}>
+                          {getServiceLabel(reservation.service)}
+                        </span>
+                        {reservation.service === 'formule' && (
+                        <span title="Formule combinée">
+                            <Package className="w-4 h-4 text-teal-600" />
+                        </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500">{reservation.duration} min</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <Calendar className="w-4 h-4 mr-1 text-gray-400" />
+                        {reservation.date}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Clock className="w-4 h-4 mr-1 text-gray-400" />
+                        {reservation.time}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(reservation.status)}`}>
+                        {getStatusText(reservation.status)}
                       </span>
-                      {reservation.service === 'formule' && (
-                      <span title="Formule combinée">
-                        <Package className="w-4 h-4 text-teal-600" />
-                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="font-semibold text-teal-600">{reservation.price}€</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => setSelectedReservation(reservation)}
+                        className="text-teal-600 hover:text-teal-900 transition-colors"
+                        title="Voir les détails"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {reservation.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => updateReservationStatus(reservation.id, 'confirmed')}
+                            className="text-green-600 hover:text-green-900 transition-colors"
+                            title="Confirmer"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => updateReservationStatus(reservation.id, 'cancelled')}
+                            className="text-red-600 hover:text-red-900 transition-colors"
+                            title="Annuler"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
-                    </div>
-                    <div className="text-sm text-gray-500">{reservation.duration} min</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                      {reservation.date}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Clock className="w-4 h-4 mr-1 text-gray-400" />
-                      {reservation.time}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(reservation.status)}`}>
-                      {getStatusText(reservation.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className="font-semibold text-teal-600">{reservation.price}€</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => setSelectedReservation(reservation)}
-                      className="text-teal-600 hover:text-teal-900 transition-colors"
-                      title="Voir les détails"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    {reservation.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => updateReservationStatus(reservation.id, 'confirmed')}
-                          className="text-green-600 hover:text-green-900 transition-colors"
-                          title="Confirmer"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => updateReservationStatus(reservation.id, 'cancelled')}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                          title="Annuler"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    Aucune réservation trouvée.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -249,7 +307,7 @@ const Reservations: React.FC = () => {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <h4 className="font-medium text-gray-900">{selectedReservation.clientName}</h4>
@@ -262,12 +320,11 @@ const Reservations: React.FC = () => {
                   {selectedReservation.clientPhone}
                 </div>
               </div>
-              
+
               <div className="border-t pt-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <p><strong>Service:</strong> {getServiceLabel(selectedReservation.service)}</p>
                   {selectedReservation.service === 'formule' && (
-
                     <span title="Formule combinée">
                       <Package className="w-4 h-4 text-teal-600" />
                     </span>
@@ -277,20 +334,20 @@ const Reservations: React.FC = () => {
                 <p><strong>Heure:</strong> {selectedReservation.time}</p>
                 <p><strong>Durée:</strong> {selectedReservation.duration} minutes</p>
                 <p><strong>Prix:</strong> <span className="text-teal-600 font-semibold">{selectedReservation.price}€</span></p>
-                <p><strong>Statut:</strong> 
+                <p><strong>Statut:</strong>
                   <span className={`ml-2 inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(selectedReservation.status)}`}>
                     {getStatusText(selectedReservation.status)}
                   </span>
                 </p>
               </div>
-              
+
               {selectedReservation.notes && (
                 <div className="border-t pt-4">
                   <p><strong>Notes:</strong></p>
                   <p className="text-sm text-gray-600 mt-1 bg-gray-50 p-3 rounded-lg">{selectedReservation.notes}</p>
                 </div>
               )}
-              
+
               <div className="flex space-x-3 pt-4">
                 {selectedReservation.status === 'pending' && (
                   <>

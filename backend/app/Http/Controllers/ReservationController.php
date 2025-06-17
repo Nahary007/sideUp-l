@@ -57,4 +57,8 @@ class ReservationController extends Controller
 
         return response()->json(['message' => 'Réservation enregistrée avec succès et email envoyé.'], 201);
     }
+
+    public function show_all() {
+        return response()->json(Reservation::all());
+    }
 }
