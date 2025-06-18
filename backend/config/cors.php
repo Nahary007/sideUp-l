@@ -1,6 +1,6 @@
 <?php
 return [
-    'paths' => ['api/*', '/login', '/logout', '/register', '/reserver', '/sanctum/csrf-cookie', '/contact', '/admin/check-auth'],
+    'paths' => ['api/*', '/login', '/logout', '/register', '/reserver', '/reservations','reservations/*/status', '/sanctum/csrf-cookie', '/contact', '/admin/check-auth'],
     'allowed_methods' => ['*'],
     'allowed_origins' => ['http://localhost:5173'],
     'allowed_origins_patterns' => [],
