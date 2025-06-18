@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Filter, Eye, Check, X, Calendar, Phone, Mail, Clock, Package } from 'lucide-react';
 import type { Reservation } from '../../types/admin';
+import { toast } from 'react-toastify';
 
 const Reservations: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -137,24 +138,30 @@ const Reservations: React.FC = () => {
     return matchesSearch && matchesStatus && matchesService;
   });
 
-  const updateReservationStatus = async (id: string, newStatus: Reservation['status']) => {
+
+  const updateReservationStatus = async (
+    id: string,
+    newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  ) => {
     try {
-      // Mettre à jour localement d'abord pour une meilleure UX
-      setReservations(prev =>
-        prev.map(reservation =>
-          reservation.id === id ? { ...reservation, status: newStatus } : reservation
-        )
+      await axios.patch(`http://localhost:8000/reservations/${id}/status`, {
+        status: newStatus
+      }, {
+        withCredentials: true,
+      });
+
+      // Met à jour l'état local après modification
+      setReservations((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
       );
-      
-      // TODO: Implémenter l'API pour mettre à jour le statut côté serveur
-      // await axios.put(`http://localhost:8000/reservations/${id}/status`, { status: newStatus });
-      
-    } catch (err) {
-      console.error("Erreur lors de la mise à jour du statut:", err);
-      // Recharger les données en cas d'erreur
-      fetchReservations();
+
+      toast.success('Statut mis à jour avec succès'); // facultatif
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut :', error);
+      toast.error('Échec de la mise à jour'); // facultatif
     }
   };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {

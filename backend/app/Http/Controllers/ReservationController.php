@@ -6,6 +6,8 @@ use App\Models\Reservation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ReservationConfirmation;
+use App\Mail\ReservationConfirmed;
+use App\Mail\ReservationCancelled;
 
 class ReservationController extends Controller
 {
@@ -60,5 +62,28 @@ class ReservationController extends Controller
 
     public function show_all() {
         return response()->json(Reservation::all());
+    }
+
+    public function updateStatus(Request $request, $id) {
+        $request->validate([
+            'status' =>'required|in:confirmed, cancelled, completed',
+        ]);
+
+        $reservation = Reservation::findOrFail($id);
+        $reservation->status = $request->status;
+        $reservation->save();
+
+        if ($request->status == 'confirmed') {
+            Mail::to($reservation->clientEmail)->send(new ReservationConfirmed($reservation));
+        }
+
+        if ($request->status == 'cancelled') {
+            Mail::to($reservation->clientEmail)->send(new ReservationCancelled($reservation));
+        }
+
+        return response()->json([
+            'message' => 'Statut mis à jour avec succès.',
+            'reservation' => $reservation
+        ]);
     }
 }
