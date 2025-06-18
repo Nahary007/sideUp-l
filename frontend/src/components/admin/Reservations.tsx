@@ -53,77 +53,58 @@ const Reservations: React.FC = () => {
 
   // Mapper les types de service Laravel vers les types frontend
   const mapServiceType = (service: string): 'coaching' | 'sophrologie' | 'massage' | 'formule' => {
-    switch (service) {
-      case 'coaching':
-      case 'coaching-sophrologie':
-        return 'coaching';
-      case 'sophrologie':
-        return 'sophrologie';
-      case 'massage':
-        return 'massage';
-      case 'preparation-mentale':
-        return 'coaching';
-      case 'decouverte':
-        return 'coaching';
-      default:
-        return 'coaching';
-    }
+    const serviceMap: { [key: string]: 'coaching' | 'sophrologie' | 'massage' | 'formule' } = {
+      'coaching': 'coaching',
+      'coaching-sophrologie': 'formule',
+      'sophrologie': 'sophrologie',
+      'massage': 'massage',
+      'preparation-mentale': 'coaching',
+      'decouverte': 'coaching'
+    };
+    
+    return serviceMap[service] || 'coaching';
   };
 
   // Mapper le statut Laravel vers le statut frontend
   const mapStatus = (status: string): 'pending' | 'confirmed' | 'completed' | 'cancelled' => {
-    if (status && status.includes('attente')) return 'pending';
-    switch (status) {
-      case 'confirmed':
-      case 'confirmee':
-        return 'confirmed';
-      case 'completed':
-      case 'terminee':
-        return 'completed';
-      case 'cancelled':
-      case 'annulee':
-        return 'cancelled';
-      default:
-        return 'pending';
-    }
+    if (!status) return 'pending';
+    
+    const statusLower = status.toLowerCase();
+    
+    if (statusLower.includes('attente') || statusLower === 'pending') return 'pending';
+    if (statusLower.includes('confirm') || statusLower === 'confirmed') return 'confirmed';
+    if (statusLower.includes('complet') || statusLower === 'completed') return 'completed';
+    if (statusLower.includes('annul') || statusLower === 'cancelled') return 'cancelled';
+    
+    return 'pending';
   };
 
   // Obtenir la durée basée sur le service
   const getDurationFromService = (service: string): number => {
-    switch (service) {
-      case 'coaching':
-      case 'sophrologie':
-      case 'preparation-mentale':
-        return 60;
-      case 'massage':
-        return 75;
-      case 'coaching-sophrologie':
-        return 90;
-      case 'decouverte':
-        return 30;
-      default:
-        return 60;
-    }
+    const durationMap: { [key: string]: number } = {
+      'coaching': 60,
+      'sophrologie': 60,
+      'massage': 75,
+      'preparation-mentale': 60,
+      'coaching-sophrologie': 90,
+      'decouverte': 30
+    };
+    
+    return durationMap[service] || 60;
   };
 
   // Obtenir le prix basé sur le service
   const getPriceFromService = (service: string): number => {
-    switch (service) {
-      case 'coaching':
-        return 80;
-      case 'sophrologie':
-        return 70;
-      case 'massage':
-        return 95;
-      case 'preparation-mentale':
-        return 75;
-      case 'coaching-sophrologie':
-        return 120;
-      case 'decouverte':
-        return 50;
-      default:
-        return 80;
-    }
+    const priceMap: { [key: string]: number } = {
+      'coaching': 80,
+      'sophrologie': 70,
+      'massage': 95,
+      'preparation-mentale': 75,
+      'coaching-sophrologie': 120,
+      'decouverte': 50
+    };
+    
+    return priceMap[service] || 80;
   };
 
   useEffect(() => {
@@ -138,15 +119,28 @@ const Reservations: React.FC = () => {
     return matchesSearch && matchesStatus && matchesService;
   });
 
-
   const updateReservationStatus = async (
     id: string,
     newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   ) => {
     try {
+      // Récupérer le token CSRF
+      await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+      };
+      const xsrfToken = getCookie('XSRF-TOKEN');
+
       await axios.patch(`http://localhost:8000/reservations/${id}/status`, {
         status: newStatus
       }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+        },
         withCredentials: true,
       });
 
@@ -155,13 +149,17 @@ const Reservations: React.FC = () => {
         prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
       );
 
-      toast.success('Statut mis à jour avec succès'); // facultatif
-    } catch (error) {
+      // Afficher un message de succès
+      console.log('Statut mis à jour avec succès');
+    } catch (error: any) {
       console.error('Erreur lors de la mise à jour du statut :', error);
-      toast.error('Échec de la mise à jour'); // facultatif
+      if (error.response?.data?.message) {
+        alert(`Erreur: ${error.response.data.message}`);
+      } else {
+        alert('Échec de la mise à jour du statut');
+      }
     }
   };
-
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -241,7 +239,7 @@ const Reservations: React.FC = () => {
           <p className="text-red-600 mb-4">{error}</p>
           <button 
             onClick={fetchReservations}
-            className="btn-primary"
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
           >
             Réessayer
           </button>
@@ -392,6 +390,15 @@ const Reservations: React.FC = () => {
                             <X className="w-4 h-4" />
                           </button>
                         </>
+                      )}
+                      {reservation.status === 'confirmed' && (
+                        <button
+                          onClick={() => updateReservationStatus(reservation.id, 'completed')}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          title="Marquer comme complété"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
                       )}
                     </td>
                   </tr>

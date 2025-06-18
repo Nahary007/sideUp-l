@@ -12,19 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('reservations', function (Blueprint $table) {
-            $table->string('status_reservations')->nullable()->after('duration'); // Exemple d'ajout
-            // Ou simplement :
-            // $table->string('nouvelle_colonne')->nullable(); // Ajout sans spécifier la position
+            $table->string('status_reservations')->default('pending')->after('duration');
         });
     }
 
     /**
      * Reverse the migrations.
      */
-    // public function down(): void
-    // {
-    //     Schema::table('votre_table', function (Blueprint $table) {
-    //         $table->dropColumn('nouvelle_colonne');
-    //     });
-    // }
+    public function down(): void
+    {
+        Schema::table('reservations', function (Blueprint $table) {
+            $table->dropColumn('status_reservations');
+        });
+    }
 };
