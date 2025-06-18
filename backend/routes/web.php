@@ -22,4 +22,5 @@ Route::middleware('auth')->group(function () {
     });
     
     Route::get('/reservations', [ReservationController::class, 'show_all']);
+    Route::patch('/reservations/{id}/status', [ReservationController::class, 'updateStatus']);
 });
