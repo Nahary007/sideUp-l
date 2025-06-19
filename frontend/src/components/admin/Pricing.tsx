@@ -355,16 +355,35 @@ const addService = async () => {
 
     try {
       setLoading(true);
-      await apiRequest(`/services/${id}`, {
-        method: 'DELETE'
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+      };
+      
+      // Récupérer le token CSRF
+      await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      const xsrfToken = getCookie('XSRF-TOKEN');
+
+      await axios.delete(`http://localhost:8000/services/${id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+        },
+        withCredentials: true,
       });
 
+      // Met à jour l'état local après suppression
       setServices(prev => prev.filter(service => service.id !== id));
       showSuccess('Service supprimé avec succès');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression du service';
-      showError(errorMessage);
-      console.error('Erreur lors de la suppression du service:', err);
+      console.log('Service supprimé avec succès');
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression du service:', error);
+      if (error.response?.data?.message) {
+        showError(`Erreur: ${error.response.data.message}`);
+      } else {
+        showError('Échec de la suppression du service');
+      }
     } finally {
       setLoading(false);
     }
