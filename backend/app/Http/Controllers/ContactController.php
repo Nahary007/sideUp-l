@@ -8,6 +8,13 @@ use Illuminate\Http\JsonResponse;
 
 class ContactController extends Controller
 {
+    public function index(): JsonResponse
+    {
+        $messages = ContactMessage::orderBy('created_at', 'desc')->get();
+        return response()->json($messages);
+    }
+
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -26,5 +33,35 @@ class ContactController extends Controller
             'data'     => $message,
         ], 201);
     }
+
+    public function markAsRead($id): JsonResponse
+    {
+        $message = ContactMessage::findOrFail($id);
+
+        if ($message->status === 'new') {
+            $message->status = 'read';
+            $message->save();
+        }
+
+        return response()->json($message);
+    }
+
+    public function reply(Request $request, $id): JsonResponse
+    {
+        $message = ContactMessage::findOrFail($id);
+
+        $validated = $request->validate([
+            'reply' => 'required|string',
+        ]);
+
+        $message->reply = $validated['reply'];
+        $message->status = 'replied';
+        $message->replied_at = now();
+        $message->save();
+
+        return response()->json($message);
+    }
+
+
 }
 

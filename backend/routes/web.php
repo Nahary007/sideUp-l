@@ -27,4 +27,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/services/{id}', [ServiceController::class, 'update']);
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
     Route::patch('/services/{id}/toggle-status', [ServiceController::class, 'toggleStatus']);
+
+    //route pour la gestion des messages envoyées par les utilisateurs
+    Route::get('/messages', [ContactController::class, 'index']);
+    Route::patch('/messages/{id}/read', [ContactController::class, 'markAsRead']);
+    Route::patch('/messages/{id}/reply', [ContactController::class, 'reply']);
+
 });
