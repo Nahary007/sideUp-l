@@ -94,7 +94,28 @@ const Messages: React.FC = () => {
 
   const sendReply = async (messageId: string, reply: string) => {
     try {
-      const res = await api.patch(`/messages/${messageId}/reply`, { reply });
+      // Récupérer le token CSRF
+      await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+      };
+      const xsrfToken = getCookie('XSRF-TOKEN');
+
+      const res = await axios.patch(`http://localhost:8000/messages/${messageId}/reply`, 
+        { reply }, 
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+          },
+          withCredentials: true,
+        }
+      );
+
+      // Met à jour l'état local après modification
       setMessages((prev) =>
         prev.map((message) =>
           message.id === messageId
@@ -107,10 +128,17 @@ const Messages: React.FC = () => {
             : message
         )
       );
+      
       setReplyText('');
       setSelectedMessage(null);
-    } catch (err) {
-      console.error('Erreur envoi réponse:', err);
+      console.log('Réponse envoyée avec succès');
+    } catch (error: any) {
+      console.error('Erreur envoi réponse:', error);
+      if (error.response?.data?.message) {
+        alert(`Erreur: ${error.response.data.message}`);
+      } else {
+        alert('Échec de l\'envoi de la réponse');
+      }
     }
   };
 
