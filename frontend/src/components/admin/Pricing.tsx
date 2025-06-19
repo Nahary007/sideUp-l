@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, ToggleLeft as Toggle, Save, X, Package, Trash2, AlertCircle } from 'lucide-react';
+import axios from 'axios';
 
 // Interface Service adaptée au backend Laravel
 interface Service {
@@ -213,68 +214,98 @@ const Pricing: React.FC = () => {
     }
   };
 
-  // Ajouter un service
-  const addService = async () => {
-    if (!newService.name.trim() || !newService.type || !newService.duration || !newService.price) {
-      showError('Veuillez remplir tous les champs obligatoires');
-      return;
+// Ajouter un service avec la même logique CSRF que les réservations
+const addService = async () => {
+  if (!newService.name.trim() || !newService.type || !newService.duration || !newService.price) {
+    showError('Veuillez remplir tous les champs obligatoires');
+    return;
+  }
+
+  if (newService.duration <= 0) {
+    showError('La durée doit être supérieure à 0');
+    return;
+  }
+
+  if (newService.price <= 0) {
+    showError('Le prix doit être supérieur à 0');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    // Récupération du token CSRF (même logique que pour les réservations)
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+
+    // Récupère le token CSRF du cookie
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+    };
+    const xsrfToken = getCookie('XSRF-TOKEN');
+
+    const serviceData = {
+      name: newService.name.trim(),
+      type: newService.type,
+      duration: Number(newService.duration),
+      price: Number(newService.price),
+      description: newService.description.trim() || '',
+      is_active: true,
+      is_package: newService.is_package || false,
+      package_details: newService.is_package && newService.package_details ? {
+        sessions: Number(newService.package_details.sessions) || 1,
+        pricePerSession: Math.round(Number(newService.price) / (Number(newService.package_details.sessions) || 1))
+      } : null
+    };
+
+    // Envoi avec axios (même logique que pour les réservations)
+    const response = await axios.post('http://localhost:8000/services', serviceData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+      },
+      withCredentials: true,
+    });
+
+    console.log('Service ajouté avec succès :', response.data);
+    setServices(prev => [...prev, response.data]);
+    
+    // Reset du formulaire
+    setNewService({
+      name: '',
+      type: 'coaching',
+      duration: 60,
+      price: 0,
+      description: '',
+      is_active: true,
+      is_package: false
+    });
+    
+    setIsAddingService(false);
+    showSuccess('Service ajouté avec succès');
+
+  } catch (error: any) {
+    console.error('Erreur lors de l\'ajout du service :', error);
+    
+    // Gérer les différents types d'erreurs (même logique que pour les réservations)
+    if (error.response?.status === 422) {
+      // Erreur de validation
+      showError('Données invalides. Veuillez vérifier vos informations.');
+    } else if (error.response?.status === 409) {
+      // Conflit (service déjà existant par exemple)
+      showError('Ce service existe déjà ou il y a un conflit.');
+    } else if (error.response?.data?.message) {
+      // Autre erreur avec message du serveur
+      showError(error.response.data.message);
+    } else {
+      // Erreur générique
+      showError("Erreur lors de l'ajout du service. Veuillez réessayer.");
     }
-
-    if (newService.duration <= 0) {
-      showError('La durée doit être supérieure à 0');
-      return;
-    }
-
-    if (newService.price <= 0) {
-      showError('Le prix doit être supérieur à 0');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const serviceData = {
-        name: newService.name.trim(),
-        type: newService.type,
-        duration: Number(newService.duration),
-        price: Number(newService.price),
-        description: newService.description.trim() || '',
-        is_active: true,
-        is_package: newService.is_package || false,
-        package_details: newService.is_package && newService.package_details ? {
-          sessions: Number(newService.package_details.sessions) || 1,
-          pricePerSession: Math.round(Number(newService.price) / (Number(newService.package_details.sessions) || 1))
-        } : null
-      };
-
-      const response = await apiRequest('/services', {
-        method: 'POST',
-        body: JSON.stringify(serviceData)
-      });
-
-      setServices(prev => [...prev, response]);
-      
-      // Reset du formulaire
-      setNewService({
-        name: '',
-        type: 'coaching',
-        duration: 60,
-        price: 0,
-        description: '',
-        is_active: true,
-        is_package: false
-      });
-      
-      setIsAddingService(false);
-      showSuccess('Service ajouté avec succès');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'ajout du service';
-      showError(errorMessage);
-      console.error('Erreur lors de l\'ajout du service:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Supprimer un service
   const deleteService = async (id: string) => {
