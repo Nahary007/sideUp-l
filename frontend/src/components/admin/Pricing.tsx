@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, ToggleLeft as Toggle, Save, X, Package, Trash2 } from 'lucide-react';
+import { Plus, Edit2, ToggleLeft as Toggle, Save, X, Package, Trash2, AlertCircle } from 'lucide-react';
 
 // Interface Service adaptée au backend Laravel
 interface Service {
@@ -19,6 +19,20 @@ interface Service {
   updated_at?: string;
 }
 
+interface NewService {
+  name: string;
+  type: 'coaching' | 'sophrologie' | 'massage' | 'formule';
+  duration: number;
+  price: number;
+  description: string;
+  is_active: boolean;
+  is_package: boolean;
+  package_details?: {
+    sessions: number;
+    pricePerSession: number;
+  };
+}
+
 const API_BASE_URL = 'http://localhost:8000';
 
 const Pricing: React.FC = () => {
@@ -28,7 +42,8 @@ const Pricing: React.FC = () => {
   const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newService, setNewService] = useState<Partial<Service>>({
+  const [success, setSuccess] = useState<string | null>(null);
+  const [newService, setNewService] = useState<NewService>({
     name: '',
     type: 'coaching',
     duration: 60,
@@ -51,28 +66,45 @@ const Pricing: React.FC = () => {
 
   // Fonction pour faire des requêtes API avec authentification
   const apiRequest = async (url: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('auth_token');
-    
-    const defaultOptions: RequestInit = {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      const defaultOptions: RequestInit = {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...options.headers,
+        },
+        ...options,
+      };
 
-    const response = await fetch(`${API_BASE_URL}${url}`, defaultOptions);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+      const response = await fetch(`${API_BASE_URL}${url}`, defaultOptions);
+      
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: `Erreur HTTP: ${response.status}` };
+        }
+        
+        throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+      }
+      
+      // Vérifier si la réponse a du contenu
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      }
+      
+      return null; // Pour les réponses sans contenu (comme DELETE)
+    } catch (error) {
+      console.error('Erreur API:', error);
+      throw error;
     }
-    
-    return response.json();
   };
 
   // Charger les services
@@ -81,9 +113,15 @@ const Pricing: React.FC = () => {
       setLoading(true);
       setError(null);
       const data = await apiRequest('/services');
-      setServices(data);
+      
+      if (Array.isArray(data)) {
+        setServices(data);
+      } else {
+        setServices([]);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des services');
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des services';
+      setError(errorMessage);
       console.error('Erreur lors du chargement des services:', err);
     } finally {
       setLoading(false);
@@ -92,10 +130,25 @@ const Pricing: React.FC = () => {
 
   // Effet pour charger les services au montage
   useEffect(() => {
-    getCsrfToken().then(() => {
-      loadServices();
-    });
+    const initializeData = async () => {
+      await getCsrfToken();
+      await loadServices();
+    };
+    
+    initializeData();
   }, []);
+
+  // Fonction pour afficher les messages de succès
+  const showSuccess = (message: string) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  // Fonction pour afficher les erreurs
+  const showError = (message: string) => {
+    setError(message);
+    setTimeout(() => setError(null), 5000);
+  };
 
   // Basculer le statut d'un service
   const toggleServiceStatus = async (id: string) => {
@@ -111,10 +164,13 @@ const Pricing: React.FC = () => {
       });
 
       setServices(prev =>
-        prev.map(s => s.id === id ? updatedService : s)
+        prev.map(s => s.id === id ? { ...s, is_active: !s.is_active } : s)
       );
+      
+      showSuccess(`Service ${!service.is_active ? 'activé' : 'désactivé'} avec succès`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la mise à jour du statut');
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du statut';
+      showError(errorMessage);
       console.error('Erreur lors de la mise à jour du statut:', err);
     }
   };
@@ -123,28 +179,34 @@ const Pricing: React.FC = () => {
   const updateService = async (updatedService: Service) => {
     try {
       setLoading(true);
+      
+      const serviceData = {
+        name: updatedService.name,
+        type: updatedService.type,
+        duration: Number(updatedService.duration),
+        price: Number(updatedService.price),
+        description: updatedService.description || '',
+        is_active: updatedService.is_active,
+        is_package: updatedService.is_package,
+        package_details: updatedService.is_package ? updatedService.package_details : null
+      };
+
       const response = await apiRequest(`/services/${updatedService.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          name: updatedService.name,
-          type: updatedService.type,
-          duration: updatedService.duration,
-          price: updatedService.price,
-          description: updatedService.description,
-          is_active: updatedService.is_active,
-          is_package: updatedService.is_package,
-          package_details: updatedService.package_details
-        })
+        body: JSON.stringify(serviceData)
       });
 
       setServices(prev =>
         prev.map(service =>
-          service.id === updatedService.id ? response : service
+          service.id === updatedService.id ? { ...updatedService, ...response } : service
         )
       );
+      
       setEditingService(null);
+      showSuccess('Service mis à jour avec succès');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la mise à jour du service');
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du service';
+      showError(errorMessage);
       console.error('Erreur lors de la mise à jour du service:', err);
     } finally {
       setLoading(false);
@@ -153,28 +215,35 @@ const Pricing: React.FC = () => {
 
   // Ajouter un service
   const addService = async () => {
-    if (!newService.name || !newService.type || !newService.duration || !newService.price) {
-      setError('Veuillez remplir tous les champs obligatoires');
+    if (!newService.name.trim() || !newService.type || !newService.duration || !newService.price) {
+      showError('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    if (newService.duration <= 0) {
+      showError('La durée doit être supérieure à 0');
+      return;
+    }
+
+    if (newService.price <= 0) {
+      showError('Le prix doit être supérieur à 0');
       return;
     }
 
     try {
       setLoading(true);
 
-    await fetch(`${API_BASE_URL}/sanctum/csrf-cookie`, { credentials: 'include' });
-
-
       const serviceData = {
-        name: newService.name,
+        name: newService.name.trim(),
         type: newService.type,
-        duration: newService.duration,
-        price: newService.price,
-        description: newService.description || '',
+        duration: Number(newService.duration),
+        price: Number(newService.price),
+        description: newService.description.trim() || '',
         is_active: true,
         is_package: newService.is_package || false,
-        package_details: newService.is_package ? {
-          sessions: newService.package_details?.sessions || 1,
-          pricePerSession: Math.round((newService.price || 0) / (newService.package_details?.sessions || 1))
+        package_details: newService.is_package && newService.package_details ? {
+          sessions: Number(newService.package_details.sessions) || 1,
+          pricePerSession: Math.round(Number(newService.price) / (Number(newService.package_details.sessions) || 1))
         } : null
       };
 
@@ -184,6 +253,8 @@ const Pricing: React.FC = () => {
       });
 
       setServices(prev => [...prev, response]);
+      
+      // Reset du formulaire
       setNewService({
         name: '',
         type: 'coaching',
@@ -193,9 +264,12 @@ const Pricing: React.FC = () => {
         is_active: true,
         is_package: false
       });
+      
       setIsAddingService(false);
+      showSuccess('Service ajouté avec succès');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'ajout du service');
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'ajout du service';
+      showError(errorMessage);
       console.error('Erreur lors de l\'ajout du service:', err);
     } finally {
       setLoading(false);
@@ -215,8 +289,10 @@ const Pricing: React.FC = () => {
       });
 
       setServices(prev => prev.filter(service => service.id !== id));
+      showSuccess('Service supprimé avec succès');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la suppression du service');
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression du service';
+      showError(errorMessage);
       console.error('Erreur lors de la suppression du service:', err);
     } finally {
       setLoading(false);
@@ -257,6 +333,21 @@ const Pricing: React.FC = () => {
     serviceTypeFilter === 'all' || service.type === serviceTypeFilter
   );
 
+  // Fonction pour fermer les modales
+  const closeModals = () => {
+    setEditingService(null);
+    setIsAddingService(false);
+    setNewService({
+      name: '',
+      type: 'coaching',
+      duration: 60,
+      price: 0,
+      description: '',
+      is_active: true,
+      is_package: false
+    });
+  };
+
   if (loading && services.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -286,16 +377,31 @@ const Pricing: React.FC = () => {
         </button>
       </div>
 
-      {/* Alerte d'erreur */}
+      {/* Alertes */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <AlertCircle className="w-5 h-5 text-red-500" />
             <span className="text-red-800 text-sm">{error}</span>
           </div>
           <button
             onClick={() => setError(null)}
             className="text-red-600 hover:text-red-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-green-800 text-sm">{success}</span>
+          </div>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-600 hover:text-green-800"
           >
             <X className="w-4 h-4" />
           </button>
@@ -343,6 +449,7 @@ const Pricing: React.FC = () => {
                   onClick={() => setEditingService(service)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                   disabled={loading}
+                  title="Modifier"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -352,6 +459,7 @@ const Pricing: React.FC = () => {
                     service.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-500'
                   }`}
                   disabled={loading}
+                  title={service.is_active ? 'Désactiver' : 'Activer'}
                 >
                   <Toggle className="w-4 h-4" />
                 </button>
@@ -359,6 +467,7 @@ const Pricing: React.FC = () => {
                   onClick={() => deleteService(service.id)}
                   className="text-red-400 hover:text-red-600 transition-colors"
                   disabled={loading}
+                  title="Supprimer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -411,6 +520,12 @@ const Pricing: React.FC = () => {
         ))}
       </div>
 
+      {filteredServices.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">Aucun service trouvé.</p>
+        </div>
+      )}
+
       {/* Modal d'édition */}
       {editingService && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -418,7 +533,7 @@ const Pricing: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">Modifier le service</h3>
               <button
-                onClick={() => setEditingService(null)}
+                onClick={closeModals}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-6 h-6" />
@@ -455,8 +570,9 @@ const Pricing: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Durée (min)</label>
                   <input
                     type="number"
+                    min="1"
                     value={editingService.duration}
-                    onChange={(e) => setEditingService({ ...editingService, duration: parseInt(e.target.value) })}
+                    onChange={(e) => setEditingService({ ...editingService, duration: parseInt(e.target.value) || 0 })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   />
                 </div>
@@ -464,8 +580,10 @@ const Pricing: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Prix (€)</label>
                   <input
                     type="number"
+                    min="0"
+                    step="0.01"
                     value={editingService.price}
-                    onChange={(e) => setEditingService({ ...editingService, price: parseInt(e.target.value) })}
+                    onChange={(e) => setEditingService({ ...editingService, price: parseFloat(e.target.value) || 0 })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   />
                 </div>
@@ -497,6 +615,7 @@ const Pricing: React.FC = () => {
                       <label className="block text-sm font-medium text-teal-700 mb-1">Nombre de séances</label>
                       <input
                         type="number"
+                        min="1"
                         value={editingService.package_details?.sessions || 1}
                         onChange={(e) => {
                           const sessions = parseInt(e.target.value) || 1;
@@ -509,7 +628,6 @@ const Pricing: React.FC = () => {
                           });
                         }}
                         className="w-full border border-teal-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        min="1"
                       />
                     </div>
                     <div>
@@ -545,7 +663,7 @@ const Pricing: React.FC = () => {
                   <span>Sauvegarder</span>
                 </button>
                 <button
-                  onClick={() => setEditingService(null)}
+                  onClick={closeModals}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
                 >
                   Annuler
@@ -563,18 +681,7 @@ const Pricing: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">Nouveau service</h3>
               <button
-                onClick={() => {
-                  setIsAddingService(false);
-                  setNewService({
-                    name: '',
-                    type: 'coaching',
-                    duration: 60,
-                    price: 0,
-                    description: '',
-                    is_active: true,
-                    is_package: false
-                  });
-                }}
+                onClick={closeModals}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-6 h-6" />
@@ -612,6 +719,7 @@ const Pricing: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Durée (min)</label>
                   <input
                     type="number"
+                    min="1"
                     value={newService.duration}
                     onChange={(e) => setNewService({ ...newService, duration: parseInt(e.target.value) || 0 })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
@@ -622,8 +730,10 @@ const Pricing: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Prix (€)</label>
                   <input
                     type="number"
+                    min="0"
+                    step="0.01"
                     value={newService.price}
-                    onChange={(e) => setNewService({ ...newService, price: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => setNewService({ ...newService, price: parseFloat(e.target.value) || 0 })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                     placeholder="50"
                   />
@@ -655,6 +765,7 @@ const Pricing: React.FC = () => {
                     <label className="block text-sm font-medium text-teal-700 mb-1">Nombre de séances</label>
                     <input
                       type="number"
+                      min="1"
                       value={newService.package_details?.sessions || 1}
                       onChange={(e) => {
                         const sessions = parseInt(e.target.value) || 1;
@@ -667,7 +778,6 @@ const Pricing: React.FC = () => {
                         });
                       }}
                       className="w-full border border-teal-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                      min="1"
                       placeholder="5"
                     />
                   </div>
@@ -695,18 +805,7 @@ const Pricing: React.FC = () => {
                   <span>Ajouter</span>
                 </button>
                 <button
-                  onClick={() => {
-                    setIsAddingService(false);
-                    setNewService({
-                      name: '',
-                      type: 'coaching',
-                      duration: 60,
-                      price: 0,
-                      description: '',
-                      is_active: true,
-                      is_package: false
-                    });
-                  }}
+                  onClick={closeModals}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
                 >
                   Annuler

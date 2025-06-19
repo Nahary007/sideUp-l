@@ -20,9 +20,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/reservations', [ReservationController::class, 'show_all']);
     Route::patch('/reservations/{id}/status', [ReservationController::class, 'updateStatus']);
 
-    // Services
+    // Services CRUD
     Route::get('/services', [ServiceController::class, 'index']);
     Route::post('/services', [ServiceController::class, 'store']);
+    Route::get('/services/{id}', [ServiceController::class, 'show']);
     Route::patch('/services/{id}', [ServiceController::class, 'update']);
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
+    Route::patch('/services/{id}/toggle-status', [ServiceController::class, 'toggleStatus']);
 });

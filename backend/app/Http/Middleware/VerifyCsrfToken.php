@@ -15,8 +15,11 @@ class VerifyCsrfToken extends Middleware
         '/reserver',
         '/login',
         '/logout',
+        '/register',
+        '/contact',
         '/reservations/*/status',
-        'services',
+        '/services',
         '/services/*',
+        '/admin/check-auth',
     ];
 }
