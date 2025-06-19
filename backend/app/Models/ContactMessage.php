@@ -3,9 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 
 class ContactMessage extends Model
 {
+    use HasFactory, Notifiable;
+
     protected $fillable = [
         'name',
         'email',
@@ -14,5 +19,10 @@ class ContactMessage extends Model
         'message',
         'status',
     ];
+    public function routeNotificationForMail()
+    {
+        return $this->email;
+    }
+
 }
 

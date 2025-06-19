@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\ContactMessage;
 use Illuminate\Http\JsonResponse;
+use App\Notifications\MessageReplyNotification;
 
 class ContactController extends Controller
 {
@@ -58,6 +59,10 @@ class ContactController extends Controller
         $message->status = 'replied';
         $message->replied_at = now();
         $message->save();
+
+        // ⬅️ Envoi de la notification par email
+        $message->notify(new MessageReplyNotification($message->reply));
+
 
         return response()->json($message);
     }
