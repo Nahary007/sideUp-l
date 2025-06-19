@@ -21,5 +21,8 @@ class VerifyCsrfToken extends Middleware
         '/services',
         '/services/*',
         '/admin/check-auth',
+        '/messages',
+        '/messages/*/read',
+        '/messages/*/reply'
     ];
 }
