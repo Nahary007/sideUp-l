@@ -12,6 +12,7 @@ class ContactMessage extends Model
         'phone',
         'service',
         'message',
+        'status',
     ];
 }
 
