@@ -154,25 +154,47 @@ const Pricing: React.FC = () => {
   // Basculer le statut d'un service
   const toggleServiceStatus = async (id: string) => {
     try {
+      setLoading(true);
+      
       const service = services.find(s => s.id === id);
       if (!service) return;
 
-      const updatedService = await apiRequest(`/services/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          is_active: !service.is_active
-        })
+      // Récupérer le token CSRF
+      await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+      };
+      const xsrfToken = getCookie('XSRF-TOKEN');
+
+      const response = await axios.patch(`http://localhost:8000/services/${id}`, {
+        is_active: !service.is_active
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+        },
+        withCredentials: true,
       });
 
+      // Met à jour l'état local après modification
       setServices(prev =>
         prev.map(s => s.id === id ? { ...s, is_active: !s.is_active } : s)
       );
       
       showSuccess(`Service ${!service.is_active ? 'activé' : 'désactivé'} avec succès`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du statut';
-      showError(errorMessage);
-      console.error('Erreur lors de la mise à jour du statut:', err);
+      console.log('Statut du service mis à jour avec succès');
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du statut:', error);
+      if (error.response?.data?.message) {
+        showError(`Erreur: ${error.response.data.message}`);
+      } else {
+        showError('Échec de la mise à jour du statut du service');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
