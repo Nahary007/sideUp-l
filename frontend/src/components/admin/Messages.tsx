@@ -1,47 +1,117 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Search, Reply, Clock, Send, X } from 'lucide-react';
-import { mockMessages } from '../../data/mockData';
-import type { Message } from '../../types/admin';
+
+interface Message {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: 'new' | 'read' | 'replied';
+  reply?: string;
+  created_at: string;
+  replied_at?: string;
+}
 
 const Messages: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
 
-  const filteredMessages = messages.filter(message => {
-    const matchesSearch = message.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         message.subject.toLowerCase().includes(searchTerm.toLowerCase());
+  const api = axios.create({
+    baseURL: 'http://localhost:8000', // change selon ton backend
+    withCredentials: true,
+  });
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const res = await api.get('/messages');
+        const mapped = res.data.map((msg: any) => ({
+          ...msg,
+          created_at: msg.created_at,
+          replied_at: msg.replied_at,
+        }));
+        setMessages(mapped);
+      } catch (err) {
+        console.error('Erreur récupération messages:', err);
+      }
+    };
+
+    fetchMessages();
+  }, []);
+
+  const filteredMessages = messages.filter((message) => {
+    const matchesSearch =
+      message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.subject.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const markAsRead = (id: string) => {
-    setMessages(prev =>
-      prev.map(message =>
-        message.id === id && message.status === 'new' 
-          ? { ...message, status: 'read' }
-          : message
-      )
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      // Récupérer le token CSRF
+      await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+      };
+      const xsrfToken = getCookie('XSRF-TOKEN');
+
+      await axios.patch(`http://localhost:8000/messages/${id}/read`, {}, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+        },
+        withCredentials: true,
+      });
+
+      // Met à jour l'état local après modification
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === id && message.status === 'new'
+            ? { ...message, status: 'read' }
+            : message
+        )
+      );
+
+      console.log('Message marqué comme lu avec succès');
+    } catch (error: any) {
+      console.error('Erreur marquage lu:', error);
+      if (error.response?.data?.message) {
+        alert(`Erreur: ${error.response.data.message}`);
+      } else {
+        alert('Échec du marquage comme lu');
+      }
+    }
   };
 
-  const sendReply = (messageId: string, reply: string) => {
-    setMessages(prev =>
-      prev.map(message =>
-        message.id === messageId
-          ? {
-              ...message,
-              status: 'replied',
-              reply,
-              repliedAt: new Date().toISOString()
-            }
-          : message
-      )
-    );
-    setReplyText('');
-    setSelectedMessage(null);
+  const sendReply = async (messageId: string, reply: string) => {
+    try {
+      const res = await api.patch(`/messages/${messageId}/reply`, { reply });
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                status: 'replied',
+                reply: res.data.reply,
+                replied_at: res.data.replied_at,
+              }
+            : message
+        )
+      );
+      setReplyText('');
+      setSelectedMessage(null);
+    } catch (err) {
+      console.error('Erreur envoi réponse:', err);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -77,7 +147,7 @@ const Messages: React.FC = () => {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -88,7 +158,7 @@ const Messages: React.FC = () => {
         <p className="text-gray-600">Gérez et répondez aux messages de vos clients</p>
       </div>
 
-      {/* Filters */}
+      {/* Filtres */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -118,7 +188,7 @@ const Messages: React.FC = () => {
         </div>
       </div>
 
-      {/* Messages List */}
+      {/* Liste des messages */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="divide-y divide-gray-200">
           {filteredMessages.map((message) => (
@@ -134,14 +204,14 @@ const Messages: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-3">
-                  <h3 className="text-lg font-medium text-gray-900">{message.clientName}</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{message.name}</h3>
                   <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(message.status)}`}>
                     {getStatusText(message.status)}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <Clock className="w-4 h-4" />
-                  {formatDate(message.createdAt)}
+                  {formatDate(message.created_at)}
                 </div>
               </div>
               <p className="text-sm font-medium text-gray-700 mb-1">{message.subject}</p>
@@ -151,7 +221,7 @@ const Messages: React.FC = () => {
         </div>
       </div>
 
-      {/* Message Detail Modal */}
+      {/* Modal */}
       {selectedMessage && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -160,8 +230,8 @@ const Messages: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">{selectedMessage.subject}</h3>
                   <div className="flex items-center space-x-4 mt-1">
-                    <p className="text-sm text-gray-600">De: {selectedMessage.clientName}</p>
-                    <p className="text-sm text-gray-600">{selectedMessage.clientEmail}</p>
+                    <p className="text-sm text-gray-600">De: {selectedMessage.name}</p>
+                    <p className="text-sm text-gray-600">{selectedMessage.email}</p>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(selectedMessage.status)}`}>
                       {getStatusText(selectedMessage.status)}
                     </span>
@@ -175,24 +245,23 @@ const Messages: React.FC = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               <div className="mb-6">
                 <div className="flex items-center text-sm text-gray-500 mb-3">
                   <Clock className="w-4 h-4 mr-1" />
-                  Reçu le {formatDate(selectedMessage.createdAt)}
+                  Reçu le {formatDate(selectedMessage.created_at)}
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-gray-800 whitespace-pre-wrap">{selectedMessage.message}</p>
                 </div>
               </div>
 
-              {/* Existing Reply */}
               {selectedMessage.reply && (
                 <div className="mb-6">
                   <div className="flex items-center text-sm text-gray-500 mb-3">
                     <Reply className="w-4 h-4 mr-1" />
-                    Votre réponse du {formatDate(selectedMessage.repliedAt!)}
+                    Votre réponse du {formatDate(selectedMessage.replied_at!)}
                   </div>
                   <div className="bg-teal-50 rounded-lg p-4 border-l-4 border-teal-500">
                     <p className="text-gray-800 whitespace-pre-wrap">{selectedMessage.reply}</p>
@@ -200,10 +269,9 @@ const Messages: React.FC = () => {
                 </div>
               )}
 
-              {/* Reply Form */}
               {selectedMessage.status !== 'replied' && (
                 <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Votre réponse:</h4>
+                  <h4 className="font-medium text-gray-900">Votre réponse :</h4>
                   <textarea
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
