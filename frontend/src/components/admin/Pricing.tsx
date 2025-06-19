@@ -176,43 +176,61 @@ const Pricing: React.FC = () => {
     }
   };
 
-  // Mettre à jour un service
-  const updateService = async (updatedService: Service) => {
-    try {
-      setLoading(true);
-      
-      const serviceData = {
-        name: updatedService.name,
-        type: updatedService.type,
-        duration: Number(updatedService.duration),
-        price: Number(updatedService.price),
-        description: updatedService.description || '',
-        is_active: updatedService.is_active,
-        is_package: updatedService.is_package,
-        package_details: updatedService.is_package ? updatedService.package_details : null
-      };
+// Mettre à jour un service
+const updateService = async (updatedService: Service) => {
+  try {
+    setLoading(true);
+    
+    // Récupérer le token CSRF
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+    
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+    };
+    const xsrfToken = getCookie('XSRF-TOKEN');
 
-      const response = await apiRequest(`/services/${updatedService.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(serviceData)
-      });
+    const serviceData = {
+      name: updatedService.name,
+      type: updatedService.type,
+      duration: Number(updatedService.duration),
+      price: Number(updatedService.price),
+      description: updatedService.description || '',
+      is_active: updatedService.is_active,
+      is_package: updatedService.is_package,
+      package_details: updatedService.is_package ? updatedService.package_details : null
+    };
 
-      setServices(prev =>
-        prev.map(service =>
-          service.id === updatedService.id ? { ...updatedService, ...response } : service
-        )
-      );
-      
-      setEditingService(null);
-      showSuccess('Service mis à jour avec succès');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du service';
-      showError(errorMessage);
-      console.error('Erreur lors de la mise à jour du service:', err);
-    } finally {
-      setLoading(false);
+    const response = await axios.patch(`http://localhost:8000/services/${updatedService.id}`, serviceData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+      },
+      withCredentials: true,
+    });
+
+    // Met à jour l'état local après modification
+    setServices(prev =>
+      prev.map(service =>
+        service.id === updatedService.id ? { ...updatedService, ...response.data } : service
+      )
+    );
+    
+    setEditingService(null);
+    showSuccess('Service mis à jour avec succès');
+    console.log('Service mis à jour avec succès');
+  } catch (error: any) {
+    console.error('Erreur lors de la mise à jour du service:', error);
+    if (error.response?.data?.message) {
+      showError(`Erreur: ${error.response.data.message}`);
+    } else {
+      showError('Échec de la mise à jour du service');
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
 // Ajouter un service avec la même logique CSRF que les réservations
 const addService = async () => {
