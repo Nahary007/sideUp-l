@@ -43,8 +43,8 @@ export interface Message {
 export interface Stats {
   totalReservations: number;
   pendingReservations: number;
-  todayRevenue: number;
-  monthlyRevenue: number;
+  confirmedReservations: number;
   newMessages: number;
   completedSessions: number;
+  activeFormulas: number;
 }
