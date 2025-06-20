@@ -6,56 +6,57 @@ const Dashboard: React.FC = () => {
   const stats = mockStats;
   const recentReservations = mockReservations.slice(0, 5);
 
-  const statCards = [
-    {
-      title: 'Réservations totales',
-      value: stats.totalReservations,
-      icon: Calendar,
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-50'
-    },
-    {
-      title: 'En attente',
-      value: stats.pendingReservations,
-      icon: Clock,
-      color: 'bg-orange-500',
-      textColor: 'text-orange-600',
-      bgColor: 'bg-orange-50'
-    },
-    {
-      title: 'Revenus du jour',
-      value: `${stats.todayRevenue}€`,
-      icon: Euro,
-      color: 'bg-green-500',
-      textColor: 'text-green-600',
-      bgColor: 'bg-green-50'
-    },
-    {
-      title: 'Revenus mensuels',
-      value: `${stats.monthlyRevenue}€`,
-      icon: TrendingUp,
-      color: 'bg-teal-500',
-      textColor: 'text-teal-600',
-      bgColor: 'bg-teal-50'
-    },
-    {
-      title: 'Nouveaux messages',
-      value: stats.newMessages,
-      icon: MessageSquare,
-      color: 'bg-purple-500',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-50'
-    },
-    {
-      title: 'Séances complétées',
-      value: stats.completedSessions,
-      icon: CheckCircle,
-      color: 'bg-emerald-500',
-      textColor: 'text-emerald-600',
-      bgColor: 'bg-emerald-50'
-    }
-  ];
+const statCards = [
+  {
+    title: 'Réservations totales',
+    value: stats.totalReservations,
+    icon: Calendar,
+    color: 'bg-blue-500',
+    textColor: 'text-blue-600',
+    bgColor: 'bg-blue-50'
+  },
+  {
+    title: 'Réservations en attente',
+    value: stats.pendingReservations,
+    icon: Clock,
+    color: 'bg-orange-500',
+    textColor: 'text-orange-600',
+    bgColor: 'bg-orange-50'
+  },
+  {
+    title: 'Réservations confirmées',
+    value: stats.confirmedReservations,
+    icon: CheckCircle,
+    color: 'bg-green-500',
+    textColor: 'text-green-600',
+    bgColor: 'bg-green-50'
+  },
+  {
+    title: 'Nouveaux messages',
+    value: stats.newMessages,
+    icon: MessageSquare,
+    color: 'bg-purple-500',
+    textColor: 'text-purple-600',
+    bgColor: 'bg-purple-50'
+  },
+  {
+    title: 'Séances complétées',
+    value: stats.completedSessions,
+    icon: CheckCircle,
+    color: 'bg-emerald-500',
+    textColor: 'text-emerald-600',
+    bgColor: 'bg-emerald-50'
+  },
+  {
+    title: 'Formules actives',
+    value: stats.activeFormulas,
+    icon: Package,
+    color: 'bg-teal-500',
+    textColor: 'text-teal-600',
+    bgColor: 'bg-teal-50'
+  }
+];
+
 
   const getStatusColor = (status: string) => {
     switch (status) {

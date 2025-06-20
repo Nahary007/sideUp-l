@@ -239,10 +239,10 @@ export const mockMessages: Message[] = [
 ];
 
 export const mockStats: Stats = {
-  totalReservations: 47,
-  pendingReservations: 8,
-  todayRevenue: 405, // Massage (95€) + Coaching Intensif (100€) + Formule (150€) + Découverte (60€)
-  monthlyRevenue: 4250,
+  totalReservations: 15,
+  pendingReservations: 2,
+  confirmedReservations: 6,
   newMessages: 2,
-  completedSessions: 31
+  completedSessions: 1,
+  activeFormulas: 5,
 };
