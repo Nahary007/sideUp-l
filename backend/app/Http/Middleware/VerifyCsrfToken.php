@@ -23,6 +23,9 @@ class VerifyCsrfToken extends Middleware
         '/admin/check-auth',
         '/messages',
         '/messages/*/read',
-        '/messages/*/reply'
+        '/messages/*/reply',
+        '/dashboard-stats', 
+        '/recent-reservations', 
+        '/service-overview',
     ];
 }
