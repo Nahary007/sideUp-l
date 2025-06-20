@@ -21,6 +21,16 @@ class Reservation extends Model
         'location',
         'message',
         'accept_terms',
+        'status_reservations',
     ];
-}
 
+    protected $casts = [
+        'date' => 'date',
+        'accept_terms' => 'boolean',
+    ];
+
+    public function getClientNameAttribute()
+    {
+        return "{$this->first_name} {$this->last_name}";
+    }
+}
