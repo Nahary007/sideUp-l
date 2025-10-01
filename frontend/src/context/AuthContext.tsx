@@ -139,12 +139,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    setAuthState((prev) => ({ ...prev, loading: true }));
+
     try {
-      await axios.post('http://localhost:8000/logout');
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-    } finally {
+      const xsrfToken = getXsrfToken();
+
+      const res = await axios.post(
+        'http://localhost:8000/logout',
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': xsrfToken,
+          },
+          withCredentials: true,
+        }
+      );
+
+      if (res.status === 200 || res.status === 204) {
+        setAuthState({ isAuthenticated: false, loading: false });
+      } else {
+        setAuthState((prev) => ({ ...prev, loading: false }));
+        throw new Error('Erreur lors de la déconnexion');
+      }
+    } catch (error: any) {
       setAuthState({ isAuthenticated: false, loading: false });
+
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error("Erreur lors de la déconnexion. Veuillez réessayer.");
+      }
     }
   };
 

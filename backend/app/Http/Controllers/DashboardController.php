@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use App\Models\Reservation;
 use App\Models\ContactMessage;
-use Illuminate\Http\Request;
+use App\Models\Service; 
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -21,14 +22,15 @@ class DashboardController extends Controller
             'confirmedReservations' => Reservation::where('status_reservations', 'confirmed')->count(),
 
             // messages non lus
-            'newMessages' => ContactMessage::where('status', 'unread')->count(),
+            'newMessages' => ContactMessage::where('status', 'en attente')->count(),
 
             // sessions complétées
             'completedSessions' => Reservation::where('status_reservations', 'completed')->count(),
 
             // formules confirmées
-            'activeFormulas' => Reservation::where('service', 'formule')
-                                           ->where('status_reservations', 'confirmed')->count(),
+            'activeFormulas' => Service::where('is_active', true)
+                                    ->where('is_package', true)
+                                    ->count(),
         ]);
     }
 

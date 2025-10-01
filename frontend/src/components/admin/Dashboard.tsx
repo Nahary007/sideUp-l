@@ -1,62 +1,79 @@
-import React from 'react';
-import { Calendar, Euro, MessageSquare, CheckCircle, Clock, TrendingUp, Package } from 'lucide-react';
-import { mockStats, mockReservations } from '../../data/mockData';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import {
+  Calendar, Euro, MessageSquare, CheckCircle, Clock, Package
+} from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const stats = mockStats;
-  const recentReservations = mockReservations.slice(0, 5);
+  const [stats, setStats] = useState<any>(null);
+  const [recentReservations, setRecentReservations] = useState<any[]>([]);
+  const [serviceOverview, setServiceOverview] = useState<any[]>([]);
 
-const statCards = [
-  {
-    title: 'Réservations totales',
-    value: stats.totalReservations,
-    icon: Calendar,
-    color: 'bg-blue-500',
-    textColor: 'text-blue-600',
-    bgColor: 'bg-blue-50'
-  },
-  {
-    title: 'Réservations en attente',
-    value: stats.pendingReservations,
-    icon: Clock,
-    color: 'bg-orange-500',
-    textColor: 'text-orange-600',
-    bgColor: 'bg-orange-50'
-  },
-  {
-    title: 'Réservations confirmées',
-    value: stats.confirmedReservations,
-    icon: CheckCircle,
-    color: 'bg-green-500',
-    textColor: 'text-green-600',
-    bgColor: 'bg-green-50'
-  },
-  {
-    title: 'Nouveaux messages',
-    value: stats.newMessages,
-    icon: MessageSquare,
-    color: 'bg-purple-500',
-    textColor: 'text-purple-600',
-    bgColor: 'bg-purple-50'
-  },
-  {
-    title: 'Séances complétées',
-    value: stats.completedSessions,
-    icon: CheckCircle,
-    color: 'bg-emerald-500',
-    textColor: 'text-emerald-600',
-    bgColor: 'bg-emerald-50'
-  },
-  {
-    title: 'Formules actives',
-    value: stats.activeFormulas,
-    icon: Package,
-    color: 'bg-teal-500',
-    textColor: 'text-teal-600',
-    bgColor: 'bg-teal-50'
-  }
-];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, reservationsRes, overviewRes] = await Promise.all([
+          axios.get('http://localhost:8000/dashboard-stats', { withCredentials: true }),
+          axios.get('http://localhost:8000/recent-reservations', { withCredentials: true }),
+          axios.get('http://localhost:8000/service-overview', { withCredentials: true }),
+        ]);
+        setStats(statsRes.data);
+        setRecentReservations(reservationsRes.data);
+        setServiceOverview(overviewRes.data);
+      } catch (err) {
+        console.error('Erreur de chargement du dashboard :', err);
+      }
+    };
 
+    fetchData();
+  }, []);
+
+  const statCards = stats
+    ? [
+        {
+          title: 'Réservations totales',
+          value: stats.totalReservations,
+          icon: Calendar,
+          bgColor: 'bg-blue-50',
+          textColor: 'text-blue-600',
+        },
+        {
+          title: 'Réservations en attente',
+          value: stats.pendingReservations,
+          icon: Clock,
+          bgColor: 'bg-orange-50',
+          textColor: 'text-orange-600',
+        },
+        {
+          title: 'Réservations confirmées',
+          value: stats.confirmedReservations,
+          icon: CheckCircle,
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-600',
+        },
+        {
+          title: 'Nouveaux messages',
+          value: stats.newMessages,
+          icon: MessageSquare,
+          bgColor: 'bg-purple-50',
+          textColor: 'text-purple-600',
+        },
+        {
+          title: 'Séances complétées',
+          value: stats.completedSessions,
+          icon: CheckCircle,
+          bgColor: 'bg-emerald-50',
+          textColor: 'text-emerald-600',
+        },
+        {
+          title: 'Formules actives',
+          value: stats.activeFormulas,
+          icon: Package,
+          bgColor: 'bg-teal-50',
+          textColor: 'text-teal-600',
+        },
+      ]
+    : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -137,9 +154,8 @@ const statCards = [
         })}
       </div>
 
-      {/* Recent Activity */}
+      {/* Réservations récentes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Reservations */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Réservations récentes</h2>
           <div className="space-y-4">
@@ -153,7 +169,6 @@ const statCards = [
                     <span className="mx-1">•</span>
                     <span>{reservation.date} à {reservation.time}</span>
                   </div>
-                  <p className="text-sm text-teal-600 font-medium">{reservation.price}€</p>
                 </div>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(reservation.status)}`}>
                   {getStatusText(reservation.status)}
@@ -163,7 +178,7 @@ const statCards = [
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Actions rapides */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h2>
           <div className="space-y-3">
@@ -187,30 +202,19 @@ const statCards = [
         </div>
       </div>
 
-      {/* Service Performance Overview */}
+      {/* Aperçu des services */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Aperçu des services</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4 text-center">
-            <h3 className="text-sm font-medium text-blue-700 mb-1">Coaching</h3>
-            <p className="text-2xl font-bold text-blue-900">12</p>
-            <p className="text-xs text-blue-600">séances ce mois</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4 text-center">
-            <h3 className="text-sm font-medium text-purple-700 mb-1">Sophrologie</h3>
-            <p className="text-2xl font-bold text-purple-900">8</p>
-            <p className="text-xs text-purple-600">séances ce mois</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 text-center">
-            <h3 className="text-sm font-medium text-green-700 mb-1">Massage</h3>
-            <p className="text-2xl font-bold text-green-900">6</p>
-            <p className="text-xs text-green-600">séances ce mois</p>
-          </div>
-          <div className="bg-teal-50 rounded-lg p-4 text-center">
-            <h3 className="text-sm font-medium text-teal-700 mb-1">Formules</h3>
-            <p className="text-2xl font-bold text-teal-900">5</p>
-            <p className="text-xs text-teal-600">packages actifs</p>
-          </div>
+          {serviceOverview.map((service, index) => (
+            <div key={index} className="bg-gray-50 rounded-lg p-4 text-center">
+              <h3 className={`text-sm font-medium mb-1 capitalize text-${service.slug === 'formule' ? 'teal' : 'gray'}-700`}>
+                {service.name}
+              </h3>
+              <p className="text-2xl font-bold text-gray-900">{service.count}</p>
+              <p className="text-xs text-gray-600">séances ce mois</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

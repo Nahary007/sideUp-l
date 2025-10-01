@@ -2,7 +2,7 @@
 return [
     'paths' => ['api/*', '/login', '/logout', '/register', '/reserver', '/reservations','reservations/*/status',
      '/sanctum/csrf-cookie', '/contact', '/admin/check-auth', '/services', 'services/*', 'services/*/toggle-status',
-    '/messages', '/messages/*/read', '/messages/*/reply'
+    '/messages', '/messages/*/read', '/messages/*/reply', '/dashboard-stats', '/recent-reservations', '/service-overview',
     ],
     'allowed_methods' => ['*'],
     'allowed_origins' => ['http://localhost:5173'],
