@@ -8,6 +8,6 @@ export default defineConfig({
     optimizeDeps: {
     exclude: ['lucide-react'],
   },
-  base: "/sideUp-l/"
+  base: "./"
 })
 
