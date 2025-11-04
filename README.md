@@ -18,9 +18,8 @@ Assurez-vous d’avoir installé :
 
 ## ⚙️ Étapes d'installation
 
-### 1. Cloner le dépôt
-
 ```bash
+1. Cloner le dépôt
 git clone https://github.com/Nahary007/sideUp-l.git SideUp
 cd SideUp
 2. Installer le frontend (React)
