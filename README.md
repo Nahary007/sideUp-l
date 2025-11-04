@@ -16,7 +16,7 @@ Assurez-vous d’avoir installé :
 
 ---
 
-## ⚙️ Étapes d'installation
+##  Étapes d'installation
 
 ```bash
 1. Cloner le dépôt
